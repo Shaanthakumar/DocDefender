@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: docsdefender-api
+    command: uvicorn api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+      - ./reports:/app/reports
+    environment:
+      - SECRET_KEY=docsdefender_prod_secret_key_32bytes!!
+      - DATABASE_URL=sqlite:////app/storage/dlp_audit.db
+    restart: unless-stopped
+
+  ui:
+    build: .
+    container_name: docsdefender-ui
+    command: streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./storage:/app/storage
+      - ./reports:/app/reports
+    environment:
+      - SECRET_KEY=docsdefender_prod_secret_key_32bytes!!
+      - DATABASE_URL=sqlite:////app/storage/dlp_audit.db
+    depends_on:
+      - api
+    restart: unless-stopped
