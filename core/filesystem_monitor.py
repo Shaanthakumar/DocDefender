@@ -79,6 +79,45 @@ class FilesystemMonitorService:
             self.observer.stop()
             self.observer.join()
 
+_global_fs_monitor: Optional[FilesystemMonitorService] = None
+
+def get_filesystem_monitor() -> FilesystemMonitorService:
+    """Get or initialize global Watchdog filesystem monitor singleton."""
+    global _global_fs_monitor
+    if _global_fs_monitor is None:
+        _global_fs_monitor = FilesystemMonitorService()
+        _global_fs_monitor.start()
+    return _global_fs_monitor
+
+def perform_real_confidential_file_op(action: str, filename: str, content: bytes = b"CONFIDENTIAL DATA PAYLOAD") -> Dict[str, Any]:
+    """Perform a physical file system operation inside the confidential storage folder.
+    This triggers real kernel filesystem events picked up by Watchdog."""
+    watch_dir = str(CONFIDENTIAL_DIR)
+    os.makedirs(watch_dir, exist_ok=True)
+    filepath = os.path.join(watch_dir, filename)
+
+    if action == "CREATE":
+        with open(filepath, "wb") as f:
+            f.write(content)
+        result = f"Physically created file '{filename}' ({len(content)} bytes) in {watch_dir}"
+    elif action == "MODIFY":
+        with open(filepath, "ab") as f:
+            f.write(b"\n[APPENDED UNAUTHORIZED MODIFICATION DATA]\n")
+        result = f"Physically appended modifications to '{filename}' in {watch_dir}"
+    elif action == "DELETE":
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            result = f"Physically removed file '{filename}' from {watch_dir}"
+        else:
+            result = f"File '{filename}' not found to delete, created then deleted."
+            with open(filepath, "wb") as f:
+                f.write(b"temp")
+            os.remove(filepath)
+    else:
+        result = f"Unknown action {action}"
+
+    return {"status": "SUCCESS", "action": action, "filepath": filepath, "details": result}
+
 def simulate_filesystem_event(
     db: Session,
     user_id: int,

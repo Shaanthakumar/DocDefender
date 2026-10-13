@@ -59,3 +59,24 @@ def test_network_and_fs_simulation(setup_mon_db):
         assert len(events) >= 2
     finally:
         db.close()
+
+def test_real_time_phone_guard_processor_threshold(setup_mon_db):
+    from ui.camera_guard import RealTimePhoneGuardProcessor, CAMERA_GUARD_THRESHOLD
+    import av
+
+    assert CAMERA_GUARD_THRESHOLD == 0.70
+    processor = RealTimePhoneGuardProcessor()
+    assert processor.conf_threshold == 0.70
+
+    # Ensure processor defaults with user_id
+    uid = setup_mon_db
+    processor.user_id = uid
+    processor.user_name = "Test Employee"
+
+    # Frame with no phone should not trigger lock
+    empty_frame = av.VideoFrame.from_ndarray(np.zeros((100, 100, 3), dtype=np.uint8), format="bgr24")
+    out_frame = processor.recv(empty_frame)
+    assert out_frame is not None
+    assert processor.lock_triggered_flag is False
+    assert processor.phone_detected_flag is False
+

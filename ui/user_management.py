@@ -3,6 +3,7 @@ import pandas as pd
 from database.database import SessionLocal
 from database.repositories import list_users, get_user_by_email, create_user, update_user_status
 from services.auth_service import hash_password
+from services.session_manager import check_user_session_locked, unlock_user_all_sessions
 from ui.components import render_header
 
 def render_user_management():
@@ -36,11 +37,21 @@ def render_user_management():
                 col1, col2 = st.columns(2)
                 with col1:
                     new_status = st.checkbox("Account Active Status", value=target_user.is_active)
-                with col2:
                     if st.button("Update Account Status", use_container_width=True):
                         update_user_status(db, target_user.id, new_status)
                         st.success(f"Status for user {target_user.name} updated to {'Active' if new_status else 'Disabled'}.")
                         st.rerun()
+                with col2:
+                    is_locked = check_user_session_locked(db, target_user.id)
+                    if is_locked:
+                        st.warning(f"⚠️ {target_user.name} has document sessions locked due to a security violation.")
+                        admin_uid = st.session_state.get("user", {}).get("id", 1)
+                        if st.button("🔓 Unlock & Restore Document Access", key=f"unlock_user_mgmt_{target_user.id}", use_container_width=True):
+                            unlock_user_all_sessions(db, target_user_id=target_user.id, admin_user_id=admin_uid)
+                            st.success(f"Sessions unlocked for {target_user.name}!")
+                            st.rerun()
+                    else:
+                        st.info("No active security session locks on this account.")
 
         with tab2:
             st.markdown("#### Create New User Account")

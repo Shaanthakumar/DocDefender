@@ -12,6 +12,16 @@ def render_login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
+        if st.session_state.get("camera_threat_detected"):
+            threat_uid = st.session_state.get("threat_user_id", "Unknown")
+            threat_uname = st.session_state.get("threat_user_name", "Employee")
+            threat_reason = st.session_state.get("threat_reason", "Mobile phone detected in camera feed.")
+            st.error(
+                f"🚨 **SECURITY ALERT: IMMEDIATE FORCED LOGOUT TRIGGERED!**\n\n"
+                f"**Employee**: {threat_uname} (ID: `{threat_uid}`)\n\n"
+                f"**Violation**: {threat_reason}\n\n"
+                f"This incident and employee ID have been recorded in the Central Audit Trail."
+            )
         with st.form("login_form"):
             email = st.text_input("Email Address", value="admin@docsdefender.local")
             password = st.text_input("Password", type="password", value="AdminSecure2026!")
@@ -28,6 +38,10 @@ def render_login_page():
                         else:
                             token = create_access_token({"sub": str(user.id), "email": user.email, "role": user.role})
                             st.session_state["authenticated"] = True
+                            st.session_state["camera_threat_detected"] = False
+                            st.session_state.pop("threat_user_id", None)
+                            st.session_state.pop("threat_user_name", None)
+                            st.session_state.pop("threat_reason", None)
                             st.session_state["user"] = {
                                 "id": user.id,
                                 "name": user.name,

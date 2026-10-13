@@ -6,7 +6,7 @@ def render_header(title: str, subtitle: str):
     st.markdown(
         f"""
         <div class="sec-header">
-            <h1 class="sec-title">🛡️ {title}</h1>
+            <h1 class="sec-title">{title}</h1>
             <p class="sec-subtitle">{subtitle}</p>
         </div>
         """,

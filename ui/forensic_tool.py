@@ -90,7 +90,7 @@ def render_forensic_tool():
                         "Status": r.extraction_status,
                         "Confidence": f"{(r.confidence_score or 1.0)*100:.1f}%",
                         "Document ID": (r.document_id[:8] + "...") if r.document_id else "N/A",
-                        "Attributed User ID": r.extracted_user_id or "N/A",
+                        "Attributed User ID": str(r.extracted_user_id) if r.extracted_user_id is not None else "N/A",
                         "Created At": r.created_at.strftime("%Y-%m-%d %H:%M"),
                         "Evidence Hash": r.evidence_hash[:16] + "..."
                     })

@@ -195,6 +195,21 @@ def lock_user_active_sessions(db: Session, user_id: int, reason: str = "Behavior
 def get_session_by_id(db: Session, session_id: str) -> Optional[UserSession]:
     return db.query(UserSession).filter(UserSession.id == session_id).first()
 
+def list_locked_sessions(db: Session, limit: int = 50) -> List[UserSession]:
+    return db.query(UserSession).filter(UserSession.session_status == "locked").order_by(UserSession.locked_at.desc()).limit(limit).all()
+
+def unlock_user_sessions(db: Session, user_id: int) -> List[UserSession]:
+    sessions = db.query(UserSession).filter(
+        UserSession.user_id == user_id,
+        UserSession.session_status == "locked"
+    ).all()
+    for s in sessions:
+        s.session_status = "active"
+        s.locked_at = None
+        s.lock_reason = None
+    db.commit()
+    return sessions
+
 # Leak Report Repository
 def create_leak_report(
     db: Session,

@@ -8,6 +8,8 @@ from ui.monitoring_dashboard import render_monitoring_dashboard
 from ui.forensic_tool import render_forensic_tool
 from ui.user_management import render_user_management
 
+from ui.camera_guard import render_sidebar_camera_guard
+
 # Page Configuration
 st.set_page_config(
     page_title="DocsDefender — Enterprise Document Security",
@@ -30,6 +32,10 @@ else:
     st.sidebar.markdown(f"### 🛡️ DocsDefender")
     st.sidebar.markdown(f"**Logged in as**: `{user.get('name', 'User')}`")
     st.sidebar.markdown(f"**Role**: `{role.upper()}`")
+    st.sidebar.markdown("---")
+
+    # Real-Time AI Camera Guard (Surveillance activates immediately on login)
+    render_sidebar_camera_guard()
     st.sidebar.markdown("---")
 
     # Define Allowed Navigation Pages per Role

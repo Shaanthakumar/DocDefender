@@ -75,6 +75,76 @@ class NetworkEgressMonitor:
             # Scapy capture without Admin privileges will fail gracefully
             pass
 
+_global_network_monitor: Optional[NetworkEgressMonitor] = None
+
+def get_network_monitor() -> NetworkEgressMonitor:
+    """Get or initialize global Scapy network monitor singleton."""
+    global _global_network_monitor
+    if _global_network_monitor is None:
+        _global_network_monitor = NetworkEgressMonitor()
+        _global_network_monitor.start_monitoring()
+    return _global_network_monitor
+
+def perform_real_network_egress(target_url: str, payload_size_mb: float, db: Session, user_id: Optional[int] = None) -> Dict[str, Any]:
+    """Perform a real outbound network HTTP POST transmission with synthetic binary payload.
+    Logs telemetry and validates egress threshold rules."""
+    import urllib.request
+    import urllib.error
+
+    size_bytes = int(payload_size_mb * 1024 * 1024)
+    # Generate random payload bytes
+    payload = b"X" * min(size_bytes, 1024 * 1024 * 15)  # Cap at 15MB for network responsiveness
+    
+    start_t = time.time()
+    status_code = 0
+    error_msg = None
+
+    try:
+        req = urllib.request.Request(
+            target_url,
+            data=payload,
+            headers={"User-Agent": "DocsDefender-DLP-Probe/1.0", "Content-Type": "application/octet-stream"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=5.0) as resp:
+            status_code = resp.status
+    except urllib.error.HTTPError as e:
+        status_code = e.code
+    except Exception as e:
+        error_msg = str(e)
+
+    duration = time.time() - start_t
+    exceeded_threshold = payload_size_mb >= (MAX_EXFILTRATION_SIZE_BYTES / (1024 * 1024))
+
+    desc = f"OUTBOUND EGRESS ATTEMPT: Transmitted {payload_size_mb:.2f} MB to destination [{target_url}]. Response: {status_code or error_msg} (Duration: {duration:.2f}s)"
+    severity = "CRITICAL" if exceeded_threshold else "MEDIUM"
+    
+    AuditLogger.log_alert(
+        event_type="EXFILTRATION_ATTEMPT",
+        description=desc,
+        severity=severity,
+        user_id=user_id,
+        metadata={
+            "target_url": target_url,
+            "size_mb": payload_size_mb,
+            "status_code": status_code,
+            "error": error_msg,
+            "duration_sec": duration,
+            "exceeded_threshold": exceeded_threshold
+        },
+        db=db
+    )
+
+    return {
+        "status": "COMPLETED",
+        "target_url": target_url,
+        "size_mb": payload_size_mb,
+        "status_code": status_code,
+        "error": error_msg,
+        "duration_sec": round(duration, 2),
+        "alert_triggered": exceeded_threshold
+    }
+
 def simulate_network_exfiltration(
     db: Session,
     user_id: int,

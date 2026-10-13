@@ -73,10 +73,16 @@ def render_employee_viewer():
             page_num = st.slider("Page Navigation", 1, len(pages), 1)
 
         target_page_bgr = pages[page_num - 1]
-        target_page_rgb = cv2.cvtColor(target_page_bgr, cv2.COLOR_BGR2RGB)
 
-        # Generate Dynamic Watermark Overlay HTML
+        # Permanently burn employee visible stamp into the page canvas image itself!
+        # Even if saved from browser, it will ALWAYS contain the employee watermark!
         current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        on_screen_stamp = f"CONFIDENTIAL | {user_name} (EMP:{user_id}) | DOC:{selected_doc.id[:8]} | {current_time_str}"
+        from core.document_processor import apply_visible_watermark_stamp
+        burned_page_bgr = apply_visible_watermark_stamp(target_page_bgr.copy(), on_screen_stamp, opacity=0.18)
+        target_page_rgb = cv2.cvtColor(burned_page_bgr, cv2.COLOR_BGR2RGB)
+
+        # Generate Dynamic Watermark Overlay HTML (additional rotating layer)
         watermark_overlay_html = get_visible_watermark_html(
             employee_id=str(user_id),
             employee_name=user_name,
@@ -85,11 +91,17 @@ def render_employee_viewer():
             timestamp=current_time_str
         )
 
-        st.caption(f"Viewing Page {page_num} of {len(pages)} | Dynamic Watermark Applied")
+        st.caption(f"Viewing Page {page_num} of {len(pages)} | Active Anti-Leak Screen Guard Enabled")
 
-        # Container with relative CSS positioning & watermark overlay
-        st.markdown('<div class="watermarked-viewer-container">', unsafe_allow_html=True)
-        st.markdown(watermark_overlay_html, unsafe_allow_html=True)
+        # Container with relative CSS positioning, transparent right-click shield & watermark overlay
+        st.markdown(
+            f'''
+            <div class="watermarked-viewer-container" oncontextmenu="return false;">
+                <div class="viewer-protection-shield" oncontextmenu="return false;"></div>
+                {watermark_overlay_html}
+            ''',
+            unsafe_allow_html=True
+        )
         st.image(target_page_rgb, use_container_width=True, caption=f"DocsDefender Protected Viewer - {selected_doc.name}")
         st.markdown('</div>', unsafe_allow_html=True)
 
